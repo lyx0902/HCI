@@ -146,5 +146,62 @@ def get_user_by_name():
             cursor.close()
             connection.close()
 
+# 插入新闻数据
+# 插入新闻数据
+@app.route('/add_article', methods=['POST'])
+def add_article():
+    data = request.get_json()
+    atext = data.get('atext')
+
+    if not atext:
+        return jsonify({"message": "atext不能为空"}), 400
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        query = "INSERT INTO Article (atext) VALUES (%s)"
+        cursor.execute(query, (atext,))
+        connection.commit()
+
+        return jsonify({"message": "新闻数据插入成功"}), 201
+
+    except Error as e:
+        return jsonify({"message": f"数据库错误: {str(e)}"}), 500
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+
+# 读取新闻数据
+@app.route('/get_article', methods=['GET'])
+def get_article():
+    data = request.get_json()
+    aid = data.get('aid')
+
+    if aid is None:
+        return jsonify({"message": "aid不能为空"}), 400
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        query = "SELECT * FROM Article WHERE aid = %s"
+        cursor.execute(query, (aid,))
+        article = cursor.fetchone()
+
+        if article:
+            return jsonify({"article": article}), 200
+        else:
+            return jsonify({"message": "新闻数据不存在"}), 404
+
+    except Error as e:
+        return jsonify({"message": f"数据库错误: {str(e)}"}), 500
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
