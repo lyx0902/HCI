@@ -202,6 +202,65 @@ def get_article():
             cursor.close()
             connection.close()
 
+# 插入题目信息
+@app.route('/add_problem', methods=['POST'])
+def add_problem():
+    data = request.get_json()
+    ptext = data.get('ptext')
+    A = data.get('A')
+    B = data.get('B')
+    C = data.get('C')
+    D = data.get('D')
+    answer = data.get('answer')
+
+    if not ptext or not A or not B or not C or not D or not answer:
+        return jsonify({"message": "所有字段均不能为空"}), 400
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        query = "INSERT INTO Problem (ptext, A, B, C, D, answer) VALUES (%s, %s, %s, %s, %s, %s)"
+        cursor.execute(query, (ptext, A, B, C, D, answer))
+        connection.commit()
+
+        return jsonify({"message": "题目信息插入成功"}), 201
+
+    except Error as e:
+        return jsonify({"message": f"数据库错误: {str(e)}"}), 500
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+
+# 读取题目信息
+@app.route('/get_problem', methods=['GET'])
+def get_problem():
+    data = request.get_json()
+    pid =data.get('pid')
+
+    if pid is None:
+        return jsonify({"message": "pid不能为空"}), 400
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        query = "SELECT * FROM Problem WHERE pid = %s"
+        cursor.execute(query, (pid,))
+        problem = cursor.fetchone()
+
+        if problem:
+            return jsonify({"problem": problem}), 200
+        else:
+            return jsonify({"message": "题目信息不存在"}), 404
+
+    except Error as e:
+        return jsonify({"message": f"数据库错误: {str(e)}"}), 500
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
