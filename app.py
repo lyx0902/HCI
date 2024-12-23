@@ -92,25 +92,32 @@ def register():
 @app.route('/update_profile', methods=['PUT'])
 def update_profile():
     data = request.get_json()
-    name = data.get('username')
-    new_name = data.get('new_name')
+    username = data.get('username')
+    password = data.get('password')
     new_password = data.get('new_password')
-    new_age = data.get('new_age')
-    hash_password = encrypt_password(new_password)
 
-    if not name or not new_name or not new_age:
-        return jsonify({"message": "用户名、新用户名和新年龄不能为空"}), 400
+    if not username or not password or not new_password:
+        return jsonify({"message": "用户名、密码和新密码不能为空"}), 400
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor()
+        cursor = connection.cursor(dictionary=True)
 
-        # 更新用户名和邮箱
-        update_query = "UPDATE User SET username = %s, password = %s, age = %s WHERE username = %s"
-        cursor.execute(update_query, (new_name,hash_password, new_age,name))
-        connection.commit()
+        # 验证当前密码
+        query = "SELECT * FROM User WHERE username = %s"
+        cursor.execute(query, (username,))
+        user = cursor.fetchone()
 
-        return jsonify({"message": "个人信息修改成功"}), 200
+        if user and check_password(password, user['password']):
+            # 更新密码
+            new_hashed_password = encrypt_password(new_password)
+            update_query = "UPDATE User SET password = %s WHERE username = %s"
+            cursor.execute(update_query, (new_hashed_password, username))
+            connection.commit()
+
+            return jsonify({"message": "密码更新成功"}), 200
+        else:
+            return jsonify({"message": "用户名或密码错误"}), 401
 
     except Error as e:
         return jsonify({"message": f"数据库错误: {str(e)}"}), 500
@@ -254,6 +261,41 @@ def get_problem():
             return jsonify({"problem": problem}), 200
         else:
             return jsonify({"message": "题目信息不存在"}), 404
+
+    except Error as e:
+        return jsonify({"message": f"数据库错误: {str(e)}"}), 500
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+
+@app.route('/add_points', methods=['PUT'])
+def add_points():
+    data = request.get_json()
+    username = data.get('username')
+    addpoint = data.get('addpoint')
+
+    if not username or addpoint is None:
+        return jsonify({"message": "用户名和加分数不能为空"}), 400
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        # 获取当前的points
+        query = "SELECT points FROM User WHERE username = %s"
+        cursor.execute(query, (username,))
+        user = cursor.fetchone()
+
+        if user:
+            new_points = user['points'] + addpoint
+            update_query = "UPDATE User SET points = %s WHERE username = %s"
+            cursor.execute(update_query, (new_points, username))
+            connection.commit()
+
+            return jsonify({"message": "分数更新成功"}), 200
+        else:
+            return jsonify({"message": "用户不存在"}), 404
 
     except Error as e:
         return jsonify({"message": f"数据库错误: {str(e)}"}), 500
