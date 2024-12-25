@@ -128,8 +128,7 @@ def update_profile():
 
 @app.route('/get_user_by_name', methods=['GET'])
 def get_user_by_name():
-    data = request.get_json()
-    username = data.get('username')
+    username = request.args.get('username')
     if not username:
         return jsonify({"message": "用户名不能为空"}), 400
 
@@ -141,6 +140,7 @@ def get_user_by_name():
         cursor.execute(query, (username,))
         user = cursor.fetchone()
 
+        cursor.close()
         if user:
             return jsonify({"user": user}), 200
         else:
@@ -150,7 +150,7 @@ def get_user_by_name():
         return jsonify({"message": f"数据库错误: {str(e)}"}), 500
     finally:
         if connection:
-            cursor.close()
+            # cursor.close()
             connection.close()
 
 # 插入新闻数据
